@@ -1,0 +1,52 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace files
+/go.work
+/go.work.sum
+
+# Build output
+/bin/
+/build/
+/dist/
+
+# Go test cache
+*.cover
+coverage.out
+
+# Go module cache (usually not committed)
+pkg/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+*.log
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+
+# AOF / runtime data
+*.aof
+*.log
+data/
+
+main
