@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/flash10042/kv-chat/internal/persistence"
 	"github.com/flash10042/kv-chat/internal/protocol"
@@ -25,7 +26,9 @@ type Config struct {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	config := loadConfig()
@@ -46,7 +49,7 @@ func main() {
 		log.Printf("AOF disabled")
 	}
 
-	startServer(ctx, storage, aof, config.Address)
+	startServer(ctx, shutdownCtx, storage, aof, config.Address)
 }
 
 func loadConfig() *Config {
@@ -104,11 +107,12 @@ func loadConfigFromFile(path string) (*Config, error) {
 	return &config, nil
 }
 
-func startServer(ctx context.Context, storage *store.Storage, aof *persistence.AOF, address string) {
+func startServer(ctx context.Context, shutdownCtx context.Context, storage *store.Storage, aof *persistence.AOF, address string) {
 	var wg sync.WaitGroup
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
+		// Might be better to return an error and let the caller handle it
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
@@ -135,7 +139,18 @@ func startServer(ctx context.Context, storage *store.Storage, aof *persistence.A
 		})
 	}
 
-	wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Println("Server shutdown complete")
+	case <-shutdownCtx.Done():
+		log.Println("Server shutdown forced")
+	}
 }
 
 func replayAOF(storage *store.Storage, filename string) error {
