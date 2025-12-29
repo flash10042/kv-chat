@@ -363,8 +363,8 @@ func TestExpireZeroOrNegative(t *testing.T) {
 
 	storage.Set("key", []byte("value"))
 	ok := storage.Expire("key", 0)
-	if ok {
-		t.Fatal("Expire should return false for zero seconds")
+	if !ok {
+		t.Fatal("Expire should return true for zero seconds")
 	}
 
 	// Key should be deleted
@@ -375,8 +375,8 @@ func TestExpireZeroOrNegative(t *testing.T) {
 	// Test negative
 	storage.Set("key2", []byte("value"))
 	ok = storage.Expire("key2", -1)
-	if ok {
-		t.Fatal("Expire should return false for negative seconds")
+	if !ok {
+		t.Fatal("Expire should return true for negative seconds")
 	}
 	if storage.Exists("key2") {
 		t.Fatal("Key should be deleted when expire is negative")

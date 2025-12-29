@@ -172,7 +172,7 @@ func replayAOF(storage *store.Storage, filename string) error {
 		if err != nil {
 			return err
 		}
-		protocol.DispatchCommand(args, storage, nil)
+		protocol.DispatchCommand(protocol.DispatchModePrivate, args, storage, nil)
 	}
 	return nil
 }

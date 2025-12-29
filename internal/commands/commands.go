@@ -2,18 +2,22 @@ package commands
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/flash10042/kv-chat/internal/response"
 	"github.com/flash10042/kv-chat/internal/store"
 )
 
-type Handler func(args [][]byte, storage *store.Storage) string
+type Handler func(args [][]byte, storage *store.Storage) (string, bool)
 
+// TODO: Separate validation and handling
 type Command struct {
-	Name    string
-	Arity   int
-	Mutates bool
-	Handler Handler
+	Name         string
+	Arity        int
+	Mutates      bool
+	Handler      Handler
+	IsPrivate    bool
+	AOFTransform func(args [][]byte) [][]byte
 }
 
 func init() {
@@ -54,10 +58,11 @@ func init() {
 		Handler: LRangeHandler,
 	})
 	register(Command{
-		Name:    "EXPIRE",
-		Arity:   3,
-		Mutates: true,
-		Handler: ExpireHandler,
+		Name:         "EXPIRE",
+		Arity:        3,
+		Mutates:      true,
+		Handler:      ExpireHandler,
+		AOFTransform: ExpireTransform,
 	})
 	register(Command{
 		Name:    "TTL",
@@ -78,126 +83,167 @@ func init() {
 		Handler: ExistsHandler,
 	})
 	register(Command{
-		Name:    "SETEX",
-		Arity:   4,
-		Mutates: true,
-		Handler: SetExHandler,
+		Name:         "SETEX",
+		Arity:        4,
+		Mutates:      true,
+		Handler:      SetExHandler,
+		AOFTransform: SetExTransform,
+	})
+	register(Command{
+		Name:      "EXPIREAT",
+		Arity:     3,
+		Mutates:   true,
+		Handler:   ExpireAtHandler,
+		IsPrivate: true,
+	})
+	register(Command{
+		Name:      "SETEXAT",
+		Arity:     4,
+		Mutates:   true,
+		Handler:   SetExAtHandler,
+		IsPrivate: true,
 	})
 }
 
-func PingHandler(args [][]byte, storage *store.Storage) string {
-	return response.FormatResponse(response.SimpleStringPrefix, "PONG")
+func PingHandler(args [][]byte, storage *store.Storage) (string, bool) {
+	return response.FormatResponse(response.SimpleStringPrefix, "PONG"), true
 }
 
-func SetHandler(args [][]byte, storage *store.Storage) string {
+func SetHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	value := args[2]
 	storage.Set(key, value)
-	return response.FormatResponse(response.SimpleStringPrefix, "OK")
+	return response.FormatResponse(response.SimpleStringPrefix, "OK"), true
 }
 
-func GetHandler(args [][]byte, storage *store.Storage) string {
+func GetHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	value, err := storage.Get(key)
 	if err != nil {
 		if err == store.ErrWrongType {
-			return response.ErrWrongTypeResponse()
+			return response.ErrWrongTypeResponse(), false
 		}
-		return response.ErrInternalResponse()
+		return response.ErrInternalResponse(), false
 	}
-	return response.FormatBulkString(value)
+	return response.FormatBulkString(value), true
 }
 
-func LPushHandler(args [][]byte, storage *store.Storage) string {
+func LPushHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	value := args[2]
 	length, err := storage.LPush(key, value)
 	if err != nil {
 		if err == store.ErrWrongType {
-			return response.ErrWrongTypeResponse()
+			return response.ErrWrongTypeResponse(), false
 		}
-		return response.ErrInternalResponse()
+		return response.ErrInternalResponse(), false
 	}
-	return response.FormatResponse(response.IntegerPrefix, strconv.Itoa(length))
+	return response.FormatResponse(response.IntegerPrefix, strconv.Itoa(length)), true
 }
 
-func RPushHandler(args [][]byte, storage *store.Storage) string {
+func RPushHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	value := args[2]
 	length, err := storage.RPush(key, value)
 	if err != nil {
 		if err == store.ErrWrongType {
-			return response.ErrWrongTypeResponse()
+			return response.ErrWrongTypeResponse(), false
 		}
-		return response.ErrInternalResponse()
+		return response.ErrInternalResponse(), false
 	}
-	return response.FormatResponse(response.IntegerPrefix, strconv.Itoa(length))
+	return response.FormatResponse(response.IntegerPrefix, strconv.Itoa(length)), true
 }
 
-func LRangeHandler(args [][]byte, storage *store.Storage) string {
+func LRangeHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	start, err := strconv.Atoi(string(args[2]))
 	if err != nil {
-		return response.ErrInvalidIntegerResponse()
+		return response.ErrInvalidIntegerResponse(), false
 	}
 	end, err := strconv.Atoi(string(args[3]))
 	if err != nil {
-		return response.ErrInvalidIntegerResponse()
+		return response.ErrInvalidIntegerResponse(), false
 	}
 	values, err := storage.LRange(key, start, end)
 	if err != nil {
 		if err == store.ErrWrongType {
-			return response.ErrWrongTypeResponse()
+			return response.ErrWrongTypeResponse(), false
 		}
-		return response.ErrInternalResponse()
+		return response.ErrInternalResponse(), false
 	}
-	return response.FormatArray(values)
+	return response.FormatArray(values), true
 }
 
-func ExpireHandler(args [][]byte, storage *store.Storage) string {
+func ExpireHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	seconds, err := strconv.ParseInt(string(args[2]), 10, 64)
 	if err != nil {
-		return response.ErrInvalidIntegerResponse()
+		return response.ErrInvalidIntegerResponse(), false
 	}
 	ok := storage.Expire(key, seconds)
 	if ok {
-		return response.FormatResponse(response.IntegerPrefix, "1")
+		return response.FormatResponse(response.IntegerPrefix, "1"), true
 	}
-	return response.FormatResponse(response.IntegerPrefix, "0")
+	return response.FormatResponse(response.IntegerPrefix, "0"), true
 }
 
-func TTLHandler(args [][]byte, storage *store.Storage) string {
+func TTLHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	ttl := storage.TTL(key)
-	return response.FormatResponse(response.IntegerPrefix, strconv.FormatInt(ttl, 10))
+	return response.FormatResponse(response.IntegerPrefix, strconv.FormatInt(ttl, 10)), true
 }
 
-func DelHandler(args [][]byte, storage *store.Storage) string {
+func DelHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	ok := storage.Del(key)
 	if ok {
-		return response.FormatResponse(response.IntegerPrefix, "1")
+		return response.FormatResponse(response.IntegerPrefix, "1"), true
 	}
-	return response.FormatResponse(response.IntegerPrefix, "0")
+	return response.FormatResponse(response.IntegerPrefix, "0"), true
 }
 
-func ExistsHandler(args [][]byte, storage *store.Storage) string {
+func ExistsHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	ok := storage.Exists(key)
 	if ok {
-		return response.FormatResponse(response.IntegerPrefix, "1")
+		return response.FormatResponse(response.IntegerPrefix, "1"), true
 	}
-	return response.FormatResponse(response.IntegerPrefix, "0")
+	return response.FormatResponse(response.IntegerPrefix, "0"), true
 }
 
-func SetExHandler(args [][]byte, storage *store.Storage) string {
+func SetExHandler(args [][]byte, storage *store.Storage) (string, bool) {
 	key := string(args[1])
 	seconds, err := strconv.ParseInt(string(args[2]), 10, 64)
 	if err != nil {
-		return response.ErrInvalidIntegerResponse()
+		return response.ErrInvalidIntegerResponse(), false
 	}
 	value := args[3]
 	storage.SetEx(key, seconds, value)
-	return response.FormatResponse(response.SimpleStringPrefix, "OK")
+	return response.FormatResponse(response.SimpleStringPrefix, "OK"), true
+}
+
+func ExpireAtHandler(args [][]byte, storage *store.Storage) (string, bool) {
+	key := string(args[1])
+	timestamp, err := strconv.ParseInt(string(args[2]), 10, 64)
+	if err != nil {
+		return response.ErrInvalidIntegerResponse(), false
+	}
+	expiresAt := time.Unix(timestamp, 0)
+	ok := storage.ExpireAt(key, expiresAt)
+	if ok {
+		return response.FormatResponse(response.IntegerPrefix, "1"), true
+	}
+	return response.FormatResponse(response.IntegerPrefix, "0"), true
+}
+
+func SetExAtHandler(args [][]byte, storage *store.Storage) (string, bool) {
+	key := string(args[1])
+	timestamp, err := strconv.ParseInt(string(args[2]), 10, 64)
+	if err != nil {
+		return response.ErrInvalidIntegerResponse(), false
+	}
+	expiresAt := time.Unix(timestamp, 0)
+	value := args[3]
+	storage.SetExAt(key, expiresAt, value)
+	return response.FormatResponse(response.SimpleStringPrefix, "OK"), true
 }

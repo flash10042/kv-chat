@@ -12,7 +12,7 @@ func TestPingHandler(t *testing.T) {
 	storage := store.NewStorage()
 	args := [][]byte{[]byte("PING")}
 
-	result := PingHandler(args, storage)
+	result, _ := PingHandler(args, storage)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "PONG")
 	if result != expected {
@@ -24,7 +24,7 @@ func TestSetHandler(t *testing.T) {
 	storage := store.NewStorage()
 	args := [][]byte{[]byte("SET"), []byte("key"), []byte("value")}
 
-	result := SetHandler(args, storage)
+	result, _ := SetHandler(args, storage)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
@@ -43,7 +43,7 @@ func TestSetHandler_Overwrite(t *testing.T) {
 	storage.Set("key", []byte("old"))
 
 	args := [][]byte{[]byte("SET"), []byte("key"), []byte("new")}
-	result := SetHandler(args, storage)
+	result, _ := SetHandler(args, storage)
 
 	if result != response.FormatResponse(response.SimpleStringPrefix, "OK") {
 		t.Fatal("Set should return OK")
@@ -60,7 +60,7 @@ func TestGetHandler(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("GET"), []byte("key")}
-	result := GetHandler(args, storage)
+	result, _ := GetHandler(args, storage)
 
 	expected := response.FormatBulkString([]byte("value"))
 	if result != expected {
@@ -72,7 +72,7 @@ func TestGetHandler_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("GET"), []byte("nonexistent")}
-	result := GetHandler(args, storage)
+	result, _ := GetHandler(args, storage)
 
 	expected := response.FormatBulkString(nil)
 	if result != expected {
@@ -85,7 +85,7 @@ func TestGetHandler_WrongType(t *testing.T) {
 	storage.LPush("key", []byte("item"))
 
 	args := [][]byte{[]byte("GET"), []byte("key")}
-	result := GetHandler(args, storage)
+	result, _ := GetHandler(args, storage)
 
 	expected := response.ErrWrongTypeResponse()
 	if result != expected {
@@ -97,7 +97,7 @@ func TestLPushHandler(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("LPUSH"), []byte("list"), []byte("item")}
-	result := LPushHandler(args, storage)
+	result, _ := LPushHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -118,7 +118,7 @@ func TestLPushHandler_Multiple(t *testing.T) {
 	args2 := [][]byte{[]byte("LPUSH"), []byte("list"), []byte("second")}
 
 	LPushHandler(args1, storage)
-	result := LPushHandler(args2, storage)
+	result, _ := LPushHandler(args2, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "2")
 	if result != expected {
@@ -137,7 +137,7 @@ func TestLPushHandler_WrongType(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("LPUSH"), []byte("key"), []byte("item")}
-	result := LPushHandler(args, storage)
+	result, _ := LPushHandler(args, storage)
 
 	expected := response.ErrWrongTypeResponse()
 	if result != expected {
@@ -149,7 +149,7 @@ func TestRPushHandler(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("RPUSH"), []byte("list"), []byte("item")}
-	result := RPushHandler(args, storage)
+	result, _ := RPushHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -164,7 +164,7 @@ func TestRPushHandler_Multiple(t *testing.T) {
 	args2 := [][]byte{[]byte("RPUSH"), []byte("list"), []byte("second")}
 
 	RPushHandler(args1, storage)
-	result := RPushHandler(args2, storage)
+	result, _ := RPushHandler(args2, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "2")
 	if result != expected {
@@ -183,7 +183,7 @@ func TestRPushHandler_WrongType(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("RPUSH"), []byte("key"), []byte("item")}
-	result := RPushHandler(args, storage)
+	result, _ := RPushHandler(args, storage)
 
 	expected := response.ErrWrongTypeResponse()
 	if result != expected {
@@ -198,7 +198,7 @@ func TestLRangeHandler(t *testing.T) {
 	storage.RPush("list", []byte("c"))
 
 	args := [][]byte{[]byte("LRANGE"), []byte("list"), []byte("0"), []byte("-1")}
-	result := LRangeHandler(args, storage)
+	result, _ := LRangeHandler(args, storage)
 
 	// Should return array
 	if result[0] != '*' {
@@ -211,7 +211,7 @@ func TestLRangeHandler_InvalidStart(t *testing.T) {
 	storage.RPush("list", []byte("a"))
 
 	args := [][]byte{[]byte("LRANGE"), []byte("list"), []byte("invalid"), []byte("0")}
-	result := LRangeHandler(args, storage)
+	result, _ := LRangeHandler(args, storage)
 
 	expected := response.ErrInvalidIntegerResponse()
 	if result != expected {
@@ -224,7 +224,7 @@ func TestLRangeHandler_InvalidEnd(t *testing.T) {
 	storage.RPush("list", []byte("a"))
 
 	args := [][]byte{[]byte("LRANGE"), []byte("list"), []byte("0"), []byte("invalid")}
-	result := LRangeHandler(args, storage)
+	result, _ := LRangeHandler(args, storage)
 
 	expected := response.ErrInvalidIntegerResponse()
 	if result != expected {
@@ -237,7 +237,7 @@ func TestLRangeHandler_WrongType(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("LRANGE"), []byte("key"), []byte("0"), []byte("-1")}
-	result := LRangeHandler(args, storage)
+	result, _ := LRangeHandler(args, storage)
 
 	expected := response.ErrWrongTypeResponse()
 	if result != expected {
@@ -249,7 +249,7 @@ func TestLRangeHandler_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("LRANGE"), []byte("nonexistent"), []byte("0"), []byte("-1")}
-	result := LRangeHandler(args, storage)
+	result, _ := LRangeHandler(args, storage)
 
 	// Should return empty array
 	if !strings.HasPrefix(result, "*0\r\n") {
@@ -262,7 +262,7 @@ func TestExpireHandler(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("EXPIRE"), []byte("key"), []byte("10")}
-	result := ExpireHandler(args, storage)
+	result, _ := ExpireHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -274,7 +274,7 @@ func TestExpireHandler_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("EXPIRE"), []byte("nonexistent"), []byte("10")}
-	result := ExpireHandler(args, storage)
+	result, _ := ExpireHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "0")
 	if result != expected {
@@ -287,7 +287,7 @@ func TestExpireHandler_InvalidInteger(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("EXPIRE"), []byte("key"), []byte("invalid")}
-	result := ExpireHandler(args, storage)
+	result, _ := ExpireHandler(args, storage)
 
 	expected := response.ErrInvalidIntegerResponse()
 	if result != expected {
@@ -300,7 +300,7 @@ func TestTTLHandler(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("TTL"), []byte("key")}
-	result := TTLHandler(args, storage)
+	result, _ := TTLHandler(args, storage)
 
 	// Should return integer (TTL -1 for no expiration)
 	expected := response.FormatResponse(response.IntegerPrefix, "-1")
@@ -314,7 +314,7 @@ func TestTTLHandler_WithExpiration(t *testing.T) {
 	storage.SetEx("key", 10, []byte("value"))
 
 	args := [][]byte{[]byte("TTL"), []byte("key")}
-	result := TTLHandler(args, storage)
+	result, _ := TTLHandler(args, storage)
 
 	// Should return positive integer
 	if result[0] != ':' {
@@ -326,7 +326,7 @@ func TestTTLHandler_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("TTL"), []byte("nonexistent")}
-	result := TTLHandler(args, storage)
+	result, _ := TTLHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "-2")
 	if result != expected {
@@ -339,7 +339,7 @@ func TestDelHandler(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("DEL"), []byte("key")}
-	result := DelHandler(args, storage)
+	result, _ := DelHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -356,7 +356,7 @@ func TestDelHandler_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("DEL"), []byte("nonexistent")}
-	result := DelHandler(args, storage)
+	result, _ := DelHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "0")
 	if result != expected {
@@ -369,7 +369,7 @@ func TestExistsHandler(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("EXISTS"), []byte("key")}
-	result := ExistsHandler(args, storage)
+	result, _ := ExistsHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -381,7 +381,7 @@ func TestExistsHandler_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("EXISTS"), []byte("nonexistent")}
-	result := ExistsHandler(args, storage)
+	result, _ := ExistsHandler(args, storage)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "0")
 	if result != expected {
@@ -393,7 +393,7 @@ func TestSetExHandler(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("SETEX"), []byte("key"), []byte("10"), []byte("value")}
-	result := SetExHandler(args, storage)
+	result, _ := SetExHandler(args, storage)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
@@ -417,7 +417,7 @@ func TestSetExHandler_InvalidInteger(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("SETEX"), []byte("key"), []byte("invalid"), []byte("value")}
-	result := SetExHandler(args, storage)
+	result, _ := SetExHandler(args, storage)
 
 	expected := response.ErrInvalidIntegerResponse()
 	if result != expected {
@@ -436,4 +436,3 @@ func TestSetExHandler_ZeroSeconds(t *testing.T) {
 		t.Fatal("Key should not exist with 0 seconds")
 	}
 }
-

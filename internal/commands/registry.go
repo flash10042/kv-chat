@@ -9,5 +9,8 @@ func register(command Command) {
 	if ok {
 		panic(fmt.Sprintf("Command %s already registered", command.Name))
 	}
+	if command.Handler == nil {
+		panic(fmt.Sprintf("Command %s has no handler", command.Name))
+	}
 	Registry[command.Name] = command
 }

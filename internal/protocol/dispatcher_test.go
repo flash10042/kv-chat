@@ -43,7 +43,7 @@ func TestDispatchCommand_EmptyCommand(t *testing.T) {
 	storage := store.NewStorage()
 	args := [][]byte{}
 
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.ErrEmptyCommandResponse()
 	if result != expected {
@@ -55,7 +55,7 @@ func TestDispatchCommand_UnknownCommand(t *testing.T) {
 	storage := store.NewStorage()
 	args := [][]byte{[]byte("UNKNOWN")}
 
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.ErrUnknownCommandResponse()
 	if result != expected {
@@ -68,7 +68,7 @@ func TestDispatchCommand_WrongArity(t *testing.T) {
 	// SET requires 3 args (command, key, value)
 	args := [][]byte{[]byte("SET"), []byte("key")}
 
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.ErrWrongArityResponse()
 	if result != expected {
@@ -80,7 +80,7 @@ func TestDispatchCommand_PING(t *testing.T) {
 	storage := store.NewStorage()
 	args := [][]byte{[]byte("PING")}
 
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "PONG")
 	if result != expected {
@@ -92,7 +92,7 @@ func TestDispatchCommand_SET(t *testing.T) {
 	storage := store.NewStorage()
 	args := [][]byte{[]byte("SET"), []byte("key"), []byte("value")}
 
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
@@ -111,7 +111,7 @@ func TestDispatchCommand_GET(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("GET"), []byte("key")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatBulkString([]byte("value"))
 	if result != expected {
@@ -123,7 +123,7 @@ func TestDispatchCommand_GET_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("GET"), []byte("nonexistent")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatBulkString(nil)
 	if result != expected {
@@ -136,7 +136,7 @@ func TestDispatchCommand_DEL(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("DEL"), []byte("key")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -153,7 +153,7 @@ func TestDispatchCommand_DEL_NonExistent(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("DEL"), []byte("nonexistent")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "0")
 	if result != expected {
@@ -165,7 +165,7 @@ func TestDispatchCommand_LPUSH(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("LPUSH"), []byte("list"), []byte("item")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -177,7 +177,7 @@ func TestDispatchCommand_RPUSH(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("RPUSH"), []byte("list"), []byte("item")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -191,7 +191,7 @@ func TestDispatchCommand_LRANGE(t *testing.T) {
 	storage.RPush("list", []byte("b"))
 
 	args := [][]byte{[]byte("LRANGE"), []byte("list"), []byte("0"), []byte("-1")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	// Should return array with 2 elements
 	if result[0] != '*' {
@@ -204,7 +204,7 @@ func TestDispatchCommand_EXPIRE(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("EXPIRE"), []byte("key"), []byte("10")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -217,7 +217,7 @@ func TestDispatchCommand_TTL(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("TTL"), []byte("key")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	// Should return integer (TTL -1 for no expiration)
 	if result[0] != ':' {
@@ -230,7 +230,7 @@ func TestDispatchCommand_EXISTS(t *testing.T) {
 	storage.Set("key", []byte("value"))
 
 	args := [][]byte{[]byte("EXISTS"), []byte("key")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.IntegerPrefix, "1")
 	if result != expected {
@@ -242,7 +242,7 @@ func TestDispatchCommand_SETEX(t *testing.T) {
 	storage := store.NewStorage()
 
 	args := [][]byte{[]byte("SETEX"), []byte("key"), []byte("10"), []byte("value")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
@@ -255,7 +255,7 @@ func TestDispatchCommand_CaseInsensitive(t *testing.T) {
 
 	// Test lowercase
 	args := [][]byte{[]byte("ping")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 	expected := response.FormatResponse(response.SimpleStringPrefix, "PONG")
 	if result != expected {
 		t.Fatalf("Lowercase command failed, got %q", result)
@@ -263,7 +263,7 @@ func TestDispatchCommand_CaseInsensitive(t *testing.T) {
 
 	// Test mixed case
 	args = [][]byte{[]byte("SeT"), []byte("key"), []byte("value")}
-	result = DispatchCommand(args, storage, nil)
+	result = DispatchCommand(DispatchModePublic, args, storage, nil)
 	expected = response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
 		t.Fatalf("Mixed case command failed, got %q", result)
@@ -280,7 +280,7 @@ func TestDispatchCommand_WithAOF(t *testing.T) {
 
 	// Mutating command should be written to AOF
 	args := [][]byte{[]byte("SET"), []byte("key"), []byte("value")}
-	result := DispatchCommand(args, storage, aof)
+	result := DispatchCommand(DispatchModePublic, args, storage, aof)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
@@ -306,7 +306,7 @@ func TestDispatchCommand_WithoutAOF(t *testing.T) {
 
 	// Mutating command without AOF should still work
 	args := [][]byte{[]byte("SET"), []byte("key"), []byte("value")}
-	result := DispatchCommand(args, storage, nil)
+	result := DispatchCommand(DispatchModePublic, args, storage, nil)
 
 	expected := response.FormatResponse(response.SimpleStringPrefix, "OK")
 	if result != expected {
@@ -325,7 +325,7 @@ func TestDispatchCommand_NonMutatingWithAOF(t *testing.T) {
 
 	// Non-mutating command should not be written to AOF
 	args := [][]byte{[]byte("GET"), []byte("key")}
-	_ = DispatchCommand(args, storage, aof)
+	_ = DispatchCommand(DispatchModePublic, args, storage, aof)
 
 	// Verify AOF file is empty (only contains previous SET if any)
 	// This test verifies GET doesn't write to AOF
@@ -360,7 +360,7 @@ func TestDispatchCommand_AllRegisteredCommands(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.command, func(t *testing.T) {
-			result := DispatchCommand(tc.args, storage, nil)
+			result := DispatchCommand(DispatchModePublic, tc.args, storage, nil)
 			if !tc.valid {
 				if result[0] != '-' {
 					t.Errorf("Expected error response for invalid %s", tc.command)
@@ -374,4 +374,3 @@ func TestDispatchCommand_AllRegisteredCommands(t *testing.T) {
 		})
 	}
 }
-

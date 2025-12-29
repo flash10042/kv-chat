@@ -23,6 +23,13 @@ type Value struct {
 	ExpiresAt time.Time
 }
 
+func (value Value) IsExpired() bool {
+	if value.ExpiresAt.IsZero() {
+		return false
+	}
+	return time.Now().After(value.ExpiresAt)
+}
+
 type Storage struct {
 	mu   sync.Mutex
 	data map[string]Value
@@ -37,8 +44,10 @@ func NewStorage() *Storage {
 func (s *Storage) Set(key string, value []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	valueCopy := make([]byte, len(value))
 	copy(valueCopy, value)
+
 	s.data[key] = Value{
 		Kind:      StringType,
 		Str:       valueCopy,
@@ -49,13 +58,16 @@ func (s *Storage) Set(key string, value []byte) {
 func (s *Storage) Get(key string) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	value, ok := s.getIfNotExpired(key)
 	if !ok {
 		return nil, nil
 	}
+
 	if value.Kind != StringType {
 		return nil, ErrWrongType
 	}
+
 	valueCopy := make([]byte, len(value.Str))
 	copy(valueCopy, value.Str)
 	return valueCopy, nil
@@ -64,10 +76,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 func (s *Storage) Del(key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	_, ok := s.getIfNotExpired(key)
 	if !ok {
 		return false
 	}
+
 	delete(s.data, key)
 	return true
 }
@@ -75,6 +89,7 @@ func (s *Storage) Del(key string) bool {
 func (s *Storage) Exists(key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	_, ok := s.getIfNotExpired(key)
 	return ok
 }
@@ -82,11 +97,14 @@ func (s *Storage) Exists(key string) bool {
 func (s *Storage) SetEx(key string, seconds int64, value []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	valueCopy := make([]byte, len(value))
+
 	if seconds <= 0 {
 		delete(s.data, key)
 		return
 	}
+
 	expiresAt := time.Now().Add(time.Duration(seconds) * time.Second)
 	copy(valueCopy, value)
 	s.data[key] = Value{
@@ -100,12 +118,15 @@ func (s *Storage) LPush(key string, value []byte) (int, error) {
 	// This is not efficient
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	storageValue, ok := s.getIfNotExpired(key)
 	if ok && storageValue.Kind != ListType {
 		return 0, ErrWrongType
 	}
+
 	valueCopy := make([]byte, len(value))
 	copy(valueCopy, value)
+
 	if !ok {
 		storageValue = Value{
 			Kind:      ListType,
@@ -118,6 +139,7 @@ func (s *Storage) LPush(key string, value []byte) (int, error) {
 		newList = append(newList, storageValue.List...)
 		storageValue.List = newList
 	}
+
 	s.data[key] = storageValue
 	return len(storageValue.List), nil
 }
@@ -125,12 +147,15 @@ func (s *Storage) LPush(key string, value []byte) (int, error) {
 func (s *Storage) RPush(key string, value []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	storageValue, ok := s.getIfNotExpired(key)
 	if ok && storageValue.Kind != ListType {
 		return 0, ErrWrongType
 	}
+
 	valueCopy := make([]byte, len(value))
 	copy(valueCopy, value)
+
 	if !ok {
 		storageValue = Value{
 			Kind:      ListType,
@@ -140,6 +165,7 @@ func (s *Storage) RPush(key string, value []byte) (int, error) {
 	} else {
 		storageValue.List = append(storageValue.List, valueCopy)
 	}
+
 	s.data[key] = storageValue
 	return len(storageValue.List), nil
 }
@@ -147,8 +173,8 @@ func (s *Storage) RPush(key string, value []byte) (int, error) {
 func (s *Storage) LRange(key string, start, end int) ([][]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	value, ok := s.getIfNotExpired(key)
 
+	value, ok := s.getIfNotExpired(key)
 	if !ok {
 		return nil, nil
 	} else if value.Kind != ListType {
@@ -181,14 +207,17 @@ func (s *Storage) LRange(key string, start, end int) ([][]byte, error) {
 func (s *Storage) Expire(key string, seconds int64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	value, ok := s.getIfNotExpired(key)
 	if !ok {
 		return false
 	}
+
 	if seconds <= 0 {
 		delete(s.data, key)
-		return false
+		return true
 	}
+
 	expiresAt := time.Now().Add(time.Duration(seconds) * time.Second)
 	value.ExpiresAt = expiresAt
 	s.data[key] = value
@@ -198,27 +227,24 @@ func (s *Storage) Expire(key string, seconds int64) bool {
 func (s *Storage) TTL(key string) int64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	value, ok := s.getIfNotExpired(key)
 	if !ok {
 		return -2
 	}
+
 	if value.ExpiresAt.IsZero() {
 		return -1
 	}
+
 	// Edge case: if key expired after getIfNotExpired, we need to delete it
 	remaining := time.Until(value.ExpiresAt)
 	if remaining <= 0 {
 		delete(s.data, key)
 		return -2
 	}
-	return int64(math.Ceil(remaining.Seconds()))
-}
 
-func (value Value) IsExpired() bool {
-	if value.ExpiresAt.IsZero() {
-		return false
-	}
-	return time.Now().After(value.ExpiresAt)
+	return int64(math.Ceil(remaining.Seconds()))
 }
 
 func (s *Storage) getIfNotExpired(key string) (Value, bool) {
@@ -232,4 +258,42 @@ func (s *Storage) getIfNotExpired(key string) (Value, bool) {
 		return Value{}, false
 	}
 	return v, true
+}
+
+func (s *Storage) ExpireAt(key string, when time.Time) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	value, ok := s.getIfNotExpired(key)
+	if !ok {
+		return false
+	}
+
+	if when.Before(time.Now()) {
+		delete(s.data, key)
+		return true
+	}
+
+	value.ExpiresAt = when
+	s.data[key] = value
+	return true
+}
+
+func (s *Storage) SetExAt(key string, when time.Time, value []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	valueCopy := make([]byte, len(value))
+
+	if when.Before(time.Now()) {
+		delete(s.data, key)
+		return
+	}
+
+	copy(valueCopy, value)
+	s.data[key] = Value{
+		Kind:      StringType,
+		Str:       valueCopy,
+		ExpiresAt: when,
+	}
 }

@@ -26,7 +26,7 @@ func HandleConnection(conn net.Conn, storage *store.Storage, aof *persistence.AO
 			return
 		}
 
-		response := protocol.DispatchCommand(args, storage, aof)
+		response := protocol.DispatchCommand(protocol.DispatchModePublic, args, storage, aof)
 
 		if _, err := writer.WriteString(response); err != nil {
 			log.Printf("Failed to write response: %v", err)
