@@ -9,7 +9,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/flash10042/kv-chat/internal/persistence"
@@ -26,10 +28,8 @@ type Config struct {
 }
 
 func main() {
-	ctx, stop := context.WithCancel(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
 
 	config := loadConfig()
 
@@ -49,7 +49,7 @@ func main() {
 		log.Printf("AOF disabled")
 	}
 
-	startServer(ctx, shutdownCtx, storage, aof, config.Address)
+	startServer(ctx, storage, aof, config.Address)
 }
 
 func loadConfig() *Config {
@@ -107,7 +107,7 @@ func loadConfigFromFile(path string) (*Config, error) {
 	return &config, nil
 }
 
-func startServer(ctx context.Context, shutdownCtx context.Context, storage *store.Storage, aof *persistence.AOF, address string) {
+func startServer(ctx context.Context, storage *store.Storage, aof *persistence.AOF, address string) {
 	var wg sync.WaitGroup
 
 	listener, err := net.Listen("tcp", address)
@@ -148,7 +148,7 @@ func startServer(ctx context.Context, shutdownCtx context.Context, storage *stor
 	select {
 	case <-done:
 		log.Println("Server shutdown complete")
-	case <-shutdownCtx.Done():
+	case <-time.After(30 * time.Second):
 		log.Println("Server shutdown forced")
 	}
 }
